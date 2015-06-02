@@ -1,0 +1,26 @@
+{
+  "name": "hydra-middleware",
+  "version": "0.0.1",
+  "description": "Hydra middleware for connect/express applications",
+  "main": "hydra-middleware.js",
+  "scripts": {
+    "test": "node_modules/.bin/mocha"
+  },
+  "keywords": [
+    "hydra"
+  ],
+  "author": "bergi@axolotlfarm.org",
+  "license": "MIT",
+  "dependencies": {
+    "hydra-core": "*",
+    "lodash": "3.*"
+  },
+  "devDependencies": {
+    "body-parser": "1.*",
+    "es6-promise": "2.*",
+    "express": "4.*",
+    "jsonld": "0.3.*",
+    "mocha": "2.*",
+    "morgan": "1.*"
+  }
+}
