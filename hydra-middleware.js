@@ -1,5 +1,6 @@
 var
   _ = require('lodash'),
+  basicAuth = require('basic-auth'),
   hydra = require('hydra-core'),
   url = require('url');
 
@@ -12,14 +13,15 @@ var utils = {};
 
 utils.sendApiHeader = function (apiUrl) {
   return function (req, res, next) {
-    var fullUrl = url.format({
+    /*var fullUrl = url.format({
       protocol: 'http',
       hostname: req.hostname,
       port: req.socket.localPort,
       pathname: apiUrl
     });
 
-    res.setHeader('Link', '<' + fullUrl + '>; rel="http://www.w3.org/ns/hydra/core#apiDocumentation"');
+    res.setHeader('Link', '<' + fullUrl + '>; rel="http://www.w3.org/ns/hydra/core#apiDocumentation"');*/
+    res.setHeader('Link', '<' + apiUrl + '>; rel="http://www.w3.org/ns/hydra/core#apiDocumentation"');
 
     next();
   }
@@ -27,113 +29,192 @@ utils.sendApiHeader = function (apiUrl) {
 
 
 utils.sendJsonLd = function (res, json) {
-  res
-    .set('Content-Type', 'application/ld+json')
-    .send(JSON.stringify(json));
+  var text = typeof json !== 'string' ? JSON.stringify(json) : json;
+
+  res.set('Content-Type', 'application/ld+json').send(text);
 };
 
 
-hydra.mw.App = function (apiDef, factory) {
-  var self = this;
+hydra.mw.createClass = function (properties) {
+  var hydraClass = function (data) {
+    var self = this;
 
-  if (typeof apiDef === 'string') {
-    apiDef = JSON.parse(apiDef);
+    if (_.isObject(data) && '@id' in data) {
+      self['@id'] = data['@id'].toString();
+    }
+
+    self['@get'] = function () {
+      var omitFunctions = function (object) {
+        return _.keys(object).reduce(function (json, key) {
+          var value = object[key];
+
+          // don't add function properties
+          if (_.isFunction(value)) {
+            return json;
+          }
+
+          // don't add properties with @omit flag
+          if (_.isObject(value) && '@omit' in value && value['@omit']) {
+            return json;
+          }
+
+          if (_.isString(value)) {
+            json[key] = value;
+          } else {
+            json[key] = omitFunctions(value);
+          }
+
+          return json;
+        }, {});
+      };
+
+      return Promise.resolve(omitFunctions(self));
+    };
+
+    _.keys(properties).forEach(function (property) {
+      self[property] = properties[property];
+    });
+
+    if (properties.init) {
+      properties.init.apply(self, arguments);
+    }
+  };
+
+  if ('@context' in properties) {
+    hydraClass['@context'] = properties['@context'];
   }
 
-  this.init = function (app) {
+  if ('@type' in properties) {
+    hydraClass['@type'] = properties['@type'];
+  }
+
+  return hydraClass;
+};
+
+
+hydra.mw.buildCollection = function (iri, collection) {
+  return {
+    '@id': iri,
+    '@type': 'http://www.w3.org/ns/hydra/core#Collection',
+    'http://www.w3.org/ns/hydra/core#member': _.values(collection).map(function (member) {
+      return {
+        '@id': member['@id'],
+        '@type': member['@type']
+      };
+    })
+  };
+};
+
+
+hydra.mw.Middleware = function (apiDef, factory) {
+  var self = this;
+
+  var findOperation = function (object, objectPath, propertyPath, method) {
+    method = '@' + method.toLowerCase();
+
+    if (_.isEmpty(propertyPath)) {
+      if (method in object) {
+        return object[method].bind(object);
+      }
+    } else {
+      return _.values(object)
+        .filter(function (property) {
+          return _.isObject(property) && '@id' in property && property['@id'] === propertyPath && method in property;
+        })
+        .map(function (property) {
+          return property[method].bind(object);
+        })
+        .shift();
+    }
+  };
+
+  this.use = function (path, app) {
+    if (arguments.length === 1) {
+      app = path;
+      path = '/';
+    }
+
     return hydra.api(apiDef)
       .then(function (api) {
         self.api = api;
 
         // send API link in header
-        app.use(utils.sendApiHeader(self.api.iri));
+        app.use(path, utils.sendApiHeader(self.api.iri));
 
         // publish API
-        app.get(self.api.iri, function (req, res) { utils.sendJsonLd(res, apiDef); });
+        app.get(self.api.iri, function (req, res) {
+          utils.sendJsonLd(res, apiDef);
+        });
 
         // handle operations
-        app.use(self.middleware);
+        app.use(path, self.middleware);
 
         return self;
       });
   };
 
   this.middleware = function (req, res, next) {
-    var methodPropert = '@' + req.method.toLowerCase();
-
-    var object = factory(req.path);
-
-    if (object) {
-      var objectPath = object['@id'];
-      var propertyPath = req.path.slice(objectPath.length);
-
-      var operation = null;
-
-      if (propertyPath === '') {
-        if (methodPropert in object) {
-          operation = object[methodPropert].bind(object);
+    factory(req.path)
+      .then(function (result) {
+        // no route found
+        if (!result) {
+          return next();
         }
-      } else {
-        _.keys(object).forEach(function (key) {
-          if (_.isObject(object[key]) && '@id' in object[key] && object[key]['@id'] === propertyPath && methodPropert in object[key]) {
-            operation = object[key][methodPropert].bind(object);
-          }
-        });
-      }
 
-      if (operation) {
-        return operation(req.body)
+        var object = result.object;
+        var objectPath = result.base;
+
+        // no object found
+        if (!object) {
+          return next();
+        }
+
+        var propertyPath = req.path.slice(objectPath.length);
+
+        // remove leading /
+        if (propertyPath.indexOf('/') === 0) {
+          propertyPath = propertyPath.slice(1);
+        }
+
+        var operation = findOperation(object, objectPath, propertyPath, req.method);
+        var credentials = basicAuth(req);
+        var options = {};
+
+        if (credentials) {
+          options.user = credentials.name;
+          options.password = credentials.pass;
+        }
+
+        if (!operation) {
+          return next();
+        }
+
+        return operation(req.body, options)
           .then(function (result) {
-            return utils.sendJsonLd(res, result);
+            if (result) {
+              return utils.sendJsonLd(res, result);
+            } else {
+              return res.status(204).send();
+            }
           });
-      }
-    }
+      })
+      .catch(function (error) {
+        error = error || 'internal server error';
 
-    next();
+        if (error.stack) {
+          console.error(error.stack);
+        } else {
+          console.error(error);
+        }
+
+        res.status(500).send(error);
+      })
   };
 };
 
 
-hydra.mw.Class = function (iri, type, context) {
-  var self = this;
-
-  this['@id'] = iri;
-  this['@type'] = type;
-
-  if (typeof context === 'string') {
-    this['@context'] = {
-      '@vocab': context
-    };
-  } else {
-    this['@context'] = context;
-  }
-
-  this['@get'] = function () {
-    return Promise.resolve(_.difference(_.keys(self), hydra.mw.Class.propertyBlackList).reduce(function (json, key) {
-      if (_.isString(self[key])) {
-        json[key] = self[key];
-      } else {
-        json[key] = _.omit(self[key], hydra.mw.Class.propertyBlackList);
-      }
-
-      return json;
-    }, {}));
-  };
-};
-
-hydra.mw.Class.propertyBlackList = ['@delete', '@get', '@post', '@put'];
-
-hydra.mw.Class.buildCollection = function (property, collection) {
-  return {
-    '@id': property['@id'],
-    '@type': 'http://www.w3.org/ns/hydra/core#Collection',
-    'http://www.w3.org/ns/hydra/core#member': _.values(collection).map(function (issue) {
-      return {
-        '@id': issue['@id'],
-        '@type': issue['@type']
-      };
-    })
-  };
+hydra.mw.createMiddleware = function (apiDef, factory) {
+  return new hydra.mw.Middleware(apiDef, factory);
 };
 
 
@@ -141,7 +222,6 @@ hydra.mw.Factory = function (routing) {
   var self = this;
 
   this.routing = routing;
-  this.objects = {};
 
   var findRouting = function (iri) {
     for (var i=0; i<self.routing.length; i++) {
@@ -166,12 +246,19 @@ hydra.mw.Factory = function (routing) {
       iri = result[1];
     }
 
-    if (!(iri in self.objects)) {
-      self.objects[iri] = new routing.Class(iri);
-    }
-
-    return self.objects[iri];
+    return routing.factory(iri)
+      .then(function (object) {
+        return {
+          base: iri,
+          object: object
+        };
+      });
   };
+};
+
+
+hydra.mw.createFactory = function (routing) {
+  return new hydra.mw.Factory(routing);
 };
 
 

@@ -16,6 +16,7 @@
     "lodash": "3.*"
   },
   "devDependencies": {
+    "basic-auth": "1.*",
     "body-parser": "1.*",
     "es6-promise": "2.*",
     "express": "4.*",
