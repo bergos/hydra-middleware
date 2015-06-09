@@ -29,8 +29,8 @@ var factoryRouting = [{
   factory: controller.getUser
 }];
 
-var factory = hydramw.createFactory(factoryRouting);
-var middleware = hydramw.createMiddleware(fs.readFileSync(__dirname + '/api.json').toString(), factory.build);
+var factory = new hydramw.Factory(factoryRouting);
+var middleware = new hydramw.Middleware(fs.readFileSync(__dirname + '/api.json').toString(), factory.build);
 
 var app = express();
 

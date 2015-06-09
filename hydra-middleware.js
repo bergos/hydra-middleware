@@ -2,13 +2,44 @@ var
   _ = require('lodash'),
   basicAuth = require('basic-auth'),
   hydra = require('hydra-core'),
-  url = require('url');
+  path = require('path'),
+  url = require('url'),
+  util = require('util');
 
 
-hydra.mw = {};
+var hydramw = {};
+
+var utils = hydramw.utils = {};
 
 
-var utils = {};
+utils.ForbiddenError = function (message) {
+  Error.call(this);
+
+  this.message = message;
+  this.statusCode = 403;
+};
+
+util.inherits(utils.ForbiddenError, Error);
+
+
+utils.NotFoundError = function (message) {
+  Error.call(this);
+
+  this.message = message;
+  this.statusCode = 404;
+};
+
+util.inherits(utils.NotFoundError, Error);
+
+
+utils.ConflictError = function (message) {
+  Error.call(this);
+
+  this.message = message;
+  this.statusCode = 409;
+};
+
+util.inherits(utils.ConflictError, Error);
 
 
 utils.sendApiHeader = function (apiUrl) {
@@ -35,78 +66,48 @@ utils.sendJsonLd = function (res, json) {
 };
 
 
-hydra.mw.createClass = function (properties) {
-  var hydraClass = function (data) {
-    var self = this;
+hydramw.Class = function (properties) {
+  var self = this;
 
-    if (_.isObject(data) && '@id' in data) {
-      self['@id'] = data['@id'].toString();
-    }
+  _.keys(properties).forEach(function (property) {
+    self[property] = properties[property];
+  });
 
-    self['@get'] = function () {
-      var omitFunctions = function (object) {
-        return _.keys(object).reduce(function (json, key) {
-          var value = object[key];
-
-          // don't add function properties
-          if (_.isFunction(value)) {
-            return json;
-          }
-
-          // don't add properties with @omit flag
-          if (_.isObject(value) && '@omit' in value && value['@omit']) {
-            return json;
-          }
-
-          if (_.isString(value)) {
-            json[key] = value;
-          } else {
-            json[key] = omitFunctions(value);
-          }
-
-          return json;
-        }, {});
-      };
-
-      return Promise.resolve(omitFunctions(self));
-    };
-
-    _.keys(properties).forEach(function (property) {
-      self[property] = properties[property];
-    });
-
-    if (properties.init) {
-      properties.init.apply(self, arguments);
-    }
-  };
-
-  if ('@context' in properties) {
-    hydraClass['@context'] = properties['@context'];
-  }
-
-  if ('@type' in properties) {
-    hydraClass['@type'] = properties['@type'];
-  }
-
-  return hydraClass;
+  self['@get'] = hydramw.Class.prototype['@get'];
 };
 
 
-hydra.mw.buildCollection = function (iri, collection) {
-  return {
-    '@id': iri,
-    '@type': 'http://www.w3.org/ns/hydra/core#Collection',
-    'http://www.w3.org/ns/hydra/core#member': _.values(collection).map(function (member) {
-      return {
-        '@id': member['@id'],
-        '@type': member['@type']
-      };
-    })
+
+hydramw.Class.prototype['@get'] = function () {
+  var copyJsonLdProperties = function (object) {
+    return _.keys(object).reduce(function (json, key) {
+      var value = object[key];
+
+      // don't add function properties
+      if (_.isFunction(value)) {
+        return json;
+      }
+
+      // don't add properties with @omit flag
+      if (_.isObject(value) && '@omit' in value && value['@omit']) {
+        return json;
+      }
+
+      if (_.isString(value)) {
+        json[key] = value;
+      } else {
+        json[key] = copyJsonLdProperties(value);
+      }
+
+      return json;
+    }, {});
   };
+
+  return Promise.resolve(copyJsonLdProperties(this));
 };
 
 
-hydra.mw.Middleware = function (apiDef, factory) {
+hydramw.Middleware = function (apiDef, factory) {
   var self = this;
 
   var findOperation = function (object, objectPath, propertyPath, method) {
@@ -126,6 +127,27 @@ hydra.mw.Middleware = function (apiDef, factory) {
         })
         .shift();
     }
+  };
+
+  var getObjectPath = function (fullPath, objectIri) {
+    var objectPath = url.parse(objectIri).path;
+
+    if (objectPath.slice(0, 1) !== '/') {
+      objectPath = path.join(fullPath, objectPath);
+    }
+
+    return objectPath;
+  };
+
+  var getPropertyPath = function (fullPath, objectPath) {
+    var propertyPath = fullPath.slice(objectPath.length);
+
+    // remove leading /
+    if (propertyPath.slice(0, 1) === '/') {
+      propertyPath = propertyPath.slice(1);
+    }
+
+    return propertyPath;
   };
 
   this.use = function (path, app) {
@@ -155,70 +177,61 @@ hydra.mw.Middleware = function (apiDef, factory) {
 
   this.middleware = function (req, res, next) {
     factory(req.path)
-      .then(function (result) {
-        // no route found
-        if (!result) {
-          return next();
-        }
+      .then(function (object) {
+        // split path into object and property path
+        var objectPath = getObjectPath(req.path, object['@id']);
+        var propertyPath = getPropertyPath(req.path, objectPath);
 
-        var object = result.object;
-        var objectPath = result.base;
-
-        // no object found
-        if (!object) {
-          return next();
-        }
-
-        var propertyPath = req.path.slice(objectPath.length);
-
-        // remove leading /
-        if (propertyPath.indexOf('/') === 0) {
-          propertyPath = propertyPath.slice(1);
-        }
-
+        // search for operation
         var operation = findOperation(object, objectPath, propertyPath, req.method);
-        var credentials = basicAuth(req);
+
+        if (!operation) {
+          return Promise.reject(new utils.NotFoundError('operation not found'));
+        }
+
+        // options for the operation call
         var options = {};
+
+        // add credentials, if available
+        var credentials = basicAuth(req);
 
         if (credentials) {
           options.user = credentials.name;
           options.password = credentials.pass;
         }
 
-        if (!operation) {
-          return next();
-        }
-
+        // call operation
         return operation(req.body, options)
           .then(function (result) {
             if (result) {
+              // send JSON-LD response if there is any result
               return utils.sendJsonLd(res, result);
             } else {
+              // or no content status code
               return res.status(204).send();
             }
           });
       })
       .catch(function (error) {
-        error = error || 'internal server error';
+        // handle error -> default internal server error
+        message = error.message || 'internal server error';
+        statusCode = error.statusCode || 500;
+        stack = error.stack || message;
 
-        if (error.stack) {
-          console.error(error.stack);
-        } else {
-          console.error(error);
+        // call next on not found
+        if (statusCode === 404) {
+          return next();
         }
 
-        res.status(500).send(error);
+        console.error(stack);
+
+        res.status(statusCode).send(message);
       })
   };
 };
 
 
-hydra.mw.createMiddleware = function (apiDef, factory) {
-  return new hydra.mw.Middleware(apiDef, factory);
-};
-
-
-hydra.mw.Factory = function (routing) {
+hydramw.Factory = function (routing) {
   var self = this;
 
   this.routing = routing;
@@ -237,7 +250,7 @@ hydra.mw.Factory = function (routing) {
     var routing = findRouting(iri);
 
     if (!routing) {
-      return undefined;
+      return Promise.reject(new utils.NotFoundError('no routing for <' + iri + '>'));
     }
 
     var result = routing.path.exec(iri);
@@ -246,20 +259,9 @@ hydra.mw.Factory = function (routing) {
       iri = result[1];
     }
 
-    return routing.factory(iri)
-      .then(function (object) {
-        return {
-          base: iri,
-          object: object
-        };
-      });
+    return routing.factory(iri);
   };
 };
 
 
-hydra.mw.createFactory = function (routing) {
-  return new hydra.mw.Factory(routing);
-};
-
-
-module.exports = hydra.mw;
+module.exports = hydramw;

@@ -1,133 +1,133 @@
 var
   _ = require('lodash'),
-  hydramw = require('../../hydra-middleware');
+  hydra = require('hydra-core'),
+  hydramw = require('../../hydra-middleware'),
+  path = require('path');
 
 
-var EntryPoint = hydramw.createClass({
-  '@context': {
-    '@vocab': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#EntryPoint/'
-  },
-  '@type':'http://www.markus-lanthaler.com/hydra/api-demo/vocab#EntryPoint',
-  init: function (iri, controller) {
-    this['@id'] = iri;
+var EntryPoint = function (iri, controller) {
+  var self = this;
 
-    this.controller = controller;
-    this.controller['@omit'] = true;
-  },
-  issues: {
+  hydramw.Class.call(this, {
+    '@context': EntryPoint['@context'],
+    '@type': EntryPoint['@type'],
+    '@id': iri
+  });
+
+  this.issues = {
     '@id': 'issues/',
     '@get': function () {
-      var self = this;
-
-      return Promise.resolve(hydramw.buildCollection(self.issues['@id'], self.controller.issues));
+      return Promise.resolve(hydra.utils.collection(self.issues['@id'], controller.issues));
     },
     '@post': function (issue, options) {
-      var self = this;
-
-      return self.controller.getAuthUser(options.user, options.password)
-        .then(function (user) {
-          issue.raisedBy = user['@id'];
-
-          return self.controller.createIssue(issue)
-        })
+      return controller.createIssue(issue, options)
         .then(function (issue) {
           return issue['@get']();
         });
     }
-  },
-  registerUser: {
+  };
+
+  this.registerUser = {
     '@id': 'users/',
     '@post': function (user) {
-      var self = this;
-
-      return self.controller.createUser(user)
+      return controller.createUser(user)
         .then(function (user) {
           return user['@get']();
         });
     }
-  },
-  users: {
+  };
+
+  this.users = {
     '@id': 'users/',
     '@get': function () {
-      var self = this;
-
-      return Promise.resolve(hydramw.buildCollection(self.users['@id'], self.controller.users));
+      return Promise.resolve(hydra.utils.collection(self.users['@id'], controller.users));
     }
-  }
-});
+  };
+};
+
+EntryPoint['@context'] = {
+  '@vocab': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#EntryPoint/'
+};
+
+EntryPoint['@type'] = 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#EntryPoint';
 
 
-var Issue = hydramw.createClass({
-  '@context': {
-    '@vocab': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#Issue/'
-  },
-  '@type': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#Issue',
-  init: function (data, controller) {
-    this.description = data.description;
-    this.isOpen = data.isOpen;
-    this.title = data.title;
-    this.raisedBy = data.raisedBy;
+var Issue = function (data, controller) {
+  var self = this;
 
-    this.controller = controller;
-    this.controller['@omit'] = true;
-  },
-  '@delete': function () {
-    var self = this;
+  hydramw.Class.call(this, {
+    '@context': Issue['@context'],
+    '@type': Issue['@type'],
+    '@id': data['@id']
+  });
 
-    return self.controller.deleteIssue(self['@id']);
-  },
-  '@put': function (issue) {
-    var self = this;
+  this.description = data.description;
+  this.isOpen = data.isOpen;
+  this.title = data.title;
+  this.raisedBy = data.raisedBy;
 
+  this['@delete'] = function () {
+    return controller.deleteIssue(self['@id']);
+  };
+
+  this['@put'] = function (issue) {
     return jsonldp.compact(issue, self['@context'])
       .then(function (issue) {
-        self.controller.issues[self['@id']] = issue;
+        controller.issues[self['@id']] = issue;
 
-        return issue;
+        return issue['@get']();
       });
-  }
-});
+  };
+};
+
+Issue['@context'] = {
+  '@vocab': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#Issue/'
+};
+
+Issue['@type'] = 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#Issue';
 
 
-var User = hydramw.createClass({
-  '@context': {
-    '@vocab': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#User/'
-  },
-  '@type': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#User',
-  init: function (data, controller) {
-    this.email = data.email;
-    this.name = data.name;
-    this.password = data.password;
+var User = function (data, controller) {
+  var self = this;
 
-    this.controller = controller;
-    this.controller['@omit'] = true;
-  },
-  '@delete': function () {
-    var self = this;
+  hydramw.Class.call(this, {
+    '@context': User['@context'],
+    '@type': User['@type'],
+    '@id': data['@id']
+  });
 
-    return self.controller.deleteUser(this['@id']);
-  },
-  '@put': function (user) {
-    var self = this;
+  this.email = data.email;
+  this.name = data.name;
+  this.password = data.password;
 
+  this['@delete'] = function () {
+    return controller.deleteUser(this['@id']);
+  };
+
+  this['@put'] = function (user) {
     return jsonldp.compact(user, self['@context'])
       .then(function (user) {
-        self.controller.users[self['@id']] = user;
+        controller.users[self['@id']] = user;
 
-        return user;
+        return user['@get']();
       });
-  },
-  raisedIssues: {
-    '@id': 'raised_issues/',
-    '@get': function () {
-      var self = this;
+  };
 
-      return Promise.resolve(hydramw.buildCollection(
-        self.raised_issues,
-        self.controller.getIssuesRaisedBy(self['@id'])));
+  this.raisedIssues = {
+    '@id': 'raised_issues',
+    '@get': function () {
+      return Promise.resolve(hydra.utils.collection(
+        path.join(self['@id'], self.raisedIssues['@id']),
+        controller.getIssuesByRaisedBy(self['@id'])));
     }
-  }
-});
+  };
+};
+
+User['@context'] = {
+  '@vocab': 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#User/'
+};
+
+User['@type'] = 'http://www.markus-lanthaler.com/hydra/api-demo/vocab#User';
 
 
 module.exports = {
