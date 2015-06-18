@@ -79,7 +79,16 @@ hydramw.Class = function (properties) {
 
 
 hydramw.Class.prototype['@get'] = function () {
-  var copyJsonLdProperties = function (object) {
+  var copyJsonLdProperties = function (object, root) {
+    if (!object) {
+      return null;
+    }
+
+    // extend @id property to full path
+    if ('@id' in object) {
+      root = path.join(root || '', object['@id']);
+    }
+
     return _.keys(object).reduce(function (json, key) {
       var value = object[key];
 
@@ -93,10 +102,15 @@ hydramw.Class.prototype['@get'] = function () {
         return json;
       }
 
+      // use full path
+      if (key === '@id') {
+        value = root;
+      }
+
       if (_.isString(value)) {
         json[key] = value;
       } else {
-        json[key] = copyJsonLdProperties(value);
+        json[key] = copyJsonLdProperties(value, root);
       }
 
       return json;
