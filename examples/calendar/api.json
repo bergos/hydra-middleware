@@ -1,0 +1,147 @@
+{
+  "@context": {"@vocab": "http://www.w3.org/ns/hydra/core#"},
+  "@id": "/vocab",
+  "@type": "ApiDocumentation",
+  "supportedClass": [
+    {
+      "@id": "http://www.w3.org/ns/hydra/core#Resource",
+      "@type": "Class",
+      "supportedOperation": [],
+      "supportedProperty": [],
+      "title": "Resource"
+    },
+    {
+      "@id": "http://www.w3.org/ns/hydra/core#Collection",
+      "@type": "Class",
+      "supportedProperty": {
+        "description": "The members of this collection.",
+        "property": {"@id": "http://www.w3.org/ns/hydra/core#member"},
+        "readonly": false,
+        "title": "members",
+        "writeonly": false
+      },
+      "title": "Collection"
+    },
+    {
+      "@id": "http://schema.org/Event",
+      "@type": "Class",
+      "supportedOperation": [
+        {
+          "@type": ["Operation", "http://schema.org/ViewAction"],
+          "method": "GET",
+          "returns": {"@id": "Event"},
+          "statusCodes": []
+        }
+      ],
+      "supportedProperty": [
+        {
+          "description": "The name of the event",
+          "property": {
+            "@id": "http://schema.org/name",
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
+            "supportedOperation": []
+          },
+          "readonly": false,
+          "title": "name",
+          "writeonly": false
+        },
+        {
+          "description": "The start date of the event",
+          "property": {
+            "@id": "http://schema.org/startDate",
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
+            "supportedOperation": []
+          },
+          "readonly": false,
+          "title": "startDate",
+          "writeonly": false
+        },
+        {
+          "description": "A short description of the event",
+          "property": {
+            "@id": "http://schema.org/description",
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
+            "supportedOperation": []
+          },
+          "readonly": false,
+          "title": "description",
+          "writeonly": false
+        },
+        {
+          "description": "IRI to invite people to the event",
+          "property": {
+            "@id": "http://schema.org/invite",
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
+            "supportedOperation": [
+              {
+                "@type": ["Operation", "http://schema.org/InviteAction"],
+                "method": "PATCH",
+                "expects": {"@id": "http://schema.org/Person"},
+                "returns": {"@id": "http://schema.org/Person"},
+                "statusCodes": []
+              }
+            ]
+          },
+          "readonly": false,
+          "title": "invite",
+          "writeonly": false
+        },
+        {
+          "description": "People invited to the event",
+          "property": {
+            "@id": "http://schema.org/invitee",
+            "@type": "http://www.w3.org/1999/02/22-rdf-syntax-ns#Property",
+            "supportedOperation": [
+              {
+                "@type": ["Operation", "http://schema.org/ViewAction"],
+                "method": "GET",
+                "returns": {"@id": "http://schema.org/Person"},
+                "statusCodes": []
+              }
+            ]
+          },
+          "readonly": false,
+          "title": "invite",
+          "writeonly": false
+        }
+      ]
+    },
+    {
+      "@id": "http://schema.org/EntryPoint",
+      "@type": "Class",
+      "supportedOperation": {
+        "@type": "Operation",
+        "method": "GET",
+        "returns": {"@id": "http://schema.org/EntryPoint"},
+        "statusCodes": []
+      },
+      "supportedProperty": [
+        {
+          "description": "A collection of all events",
+          "property": {
+            "@id": "http://schema.org/event",
+            "@type": "Link",
+            "supportedOperation": [
+              {
+                "@type": "Operation",
+                "expects": {"@id": "http://schema.org/Event"},
+                "method": "POST",
+                "returns": {"@id": "http://schema.org/Event"},
+                "statusCodes": []
+              },
+              {
+                "@type": "Operation",
+                "method": "GET",
+                "returns": {"@id": "http://www.w3.org/ns/hydra/core#Collection"},
+                "statusCodes": []
+              }
+            ]
+          },
+          "readonly": false,
+          "title": "issues",
+          "writeonly": false
+        }
+      ]
+    }
+  ]
+}
