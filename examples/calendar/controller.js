@@ -1,14 +1,9 @@
 var
   _ = require('lodash'),
-  hydramw = require('../../hydra-middleware'),
-  jsonld = require('jsonld'),
-  jsonldp = jsonld.promises(),
-  ns = require('./model').ns,
-  EntryPoint = require('./model').EntryPoint,
-  Event = require('./model').Event;
+  hydramw = require('../../hydra-middleware');
 
 
-var Controller = function () {
+var Controller = function (model) {
   var self = this;
 
   var events = {};
@@ -26,26 +21,24 @@ var Controller = function () {
   };
 
   this.getEntryPoint = function (iri) {
-    return Promise.resolve(new EntryPoint(iri, self));
+    return model.createEntryPoint(iri, self);
   };
 
   this.createEvent = function (data) {
-    return jsonldp.compact(data, {'@context': ns.context})
-      .then(function () {
-        data['@id'] = nextIri(events, '/calendar/');
+    data['@id'] = nextIri(events, '/calendar/');
 
-        var event = events[data['@id']] = new Event(data, self);
-
-        return event;
+    return model.createEvent(data, self)
+      .then(function (event) {
+        return events[event['@id']] = event;
       });
   };
 
   this.getEvent = function (iri) {
     if (!(iri in events)) {
-      return Promise.reject(new hydramw.utils.NotFoundError('event <' + iri + '> doesn\'nt exist'));
+      throw new hydramw.utils.NotFoundError('event <' + iri + '> doesn\'nt exist');
     }
 
-    return Promise.resolve(events[iri]);
+    return events[iri];
   };
 
   this.getEvents = function () {

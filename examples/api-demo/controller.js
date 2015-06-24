@@ -1,14 +1,9 @@
 var
   _ = require('lodash'),
-  hydramw = require('../../hydra-middleware'),
-  jsonld = require('jsonld'),
-  jsonldp = jsonld.promises(),
-  EntryPoint = require('./model').EntryPoint,
-  Issue = require('./model').Issue,
-  User = require('./model').User;
+  hydramw = require('../../hydra-middleware');
 
 
-var Controller = function () {
+var Controller = function (model) {
   var self = this;
 
   var issues = {};
@@ -27,43 +22,46 @@ var Controller = function () {
   };
 
   this.getEntryPoint = function (iri) {
-    return Promise.resolve(new EntryPoint(iri, self));
+    return model.createEntryPoint(iri, self);
   };
 
   this.createIssue = function (data, options) {
-    return jsonldp.compact(data, {'@context': Issue['@context']})
-      .then(function (data) {
+    return Promise.resolve()
+      .then(function () {
         // check if user is authenticated
         return self.checkAuth(options.user, options.password)
-          .then(function (user) {
-            data.raisedBy = user['@id'];
-          })
-          .then(function () {
-            data['@id'] = nextIri(issues, '/hydra/api-demo/issues/');
+      })
+      .then(function (user) {
+        data.raisedBy = {'@id': user['@id']};
+      })
+      .then(function () {
+        data['@id'] = nextIri(issues, '/hydra/api-demo/issues/');
 
-            issues[data['@id']] = new Issue(data, self);
-
-            return Promise.resolve(issues[data['@id']]);
-          });
+        return model.createIssue(data, self);
+      })
+      .then(function (issue) {
+        return issues[data['@id']] = issue;
       });
   };
 
   this.deleteIssue = function (iri) {
     if (!(iri in issues)) {
-      return Promise.reject(new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'nt exist'));
+      throw new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'nt exist');
     }
 
     delete issues[iri];
-
-    return Promise.resolve();
   };
 
   this.getIssue = function (iri) {
     if (!(iri in issues)) {
-      return Promise.reject(new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'nt exist'));
+      throw new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'nt exist');
     }
 
-    return Promise.resolve(issues[iri]);
+    return issues[iri];
+  };
+
+  this.getIssues = function () {
+    return _.values(issues);
   };
 
   this.getIssuesByRaisedBy = function (userIri) {
@@ -73,37 +71,37 @@ var Controller = function () {
   };
 
   this.createUser = function (data) {
-    return jsonldp.compact(data, {'@context': User['@context']})
-      .then(function (data) {
+    data['@id'] = nextIri(users, '/hydra/api-demo/users/');
+
+    return model.createUser(data, self)
+      .then(function (user) {
         // check if there is already a user with the same email
-        if (self.getUserByEmail(data.email)) {
-          return Promise.reject(new hydramw.utils.ConflictError('emails is already in use'));
+        if (self.getUserByEmail(user.email)) {
+          throw new hydramw.utils.ConflictError('emails is already in use');
         }
 
-        data['@id'] = nextIri(users, '/hydra/api-demo/users/');
-
-        users[data['@id']] = new User(data, self);
-
-        return Promise.resolve(users[data['@id']]);
+        return users[user['@id']] = user;
       });
   };
 
   this.deleteUser = function (iri) {
     if (!(iri in users)) {
-      return Promise.reject(new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'nt exist'));
+      throw new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'nt exist');
     }
 
     delete users[iri];
-
-    return Promise.resolve();
   };
 
   this.getUser = function (iri) {
     if (!(iri in users)) {
-      return Promise.reject(new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'nt exist'));
+      throw new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'nt exist');
     }
 
-    return Promise.resolve(users[iri]);
+    return users[iri];
+  };
+
+  this.getUsers = function () {
+    return _.values(users);
   };
 
   this.getUserByEmail = function (email) {
@@ -122,10 +120,10 @@ var Controller = function () {
       .shift();
 
     if (!user) {
-      return Promise.reject(new hydramw.utils.ForbiddenError('authentiation required'));
+      throw new hydramw.utils.ForbiddenError('authentiation required');
     }
 
-    return Promise.resolve(user);
+    return user;
   };
 };
 

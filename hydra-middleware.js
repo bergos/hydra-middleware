@@ -60,81 +60,31 @@ utils.sendApiHeader = function (apiUrl) {
 
 
 utils.sendJsonLd = function (res, json) {
-  var text = typeof json !== 'string' ? JSON.stringify(json) : json;
+  json = typeof json === 'string' ? JSON.parse(json) : json;
 
-  res.set('Content-Type', 'application/ld+json').send(text);
-};
+  if ('@id' in json) {
+    //TODO: expand and search for non blank node subject
+    res.setHeader('Content-Location', json['@id']);
+  }
 
-
-hydramw.Class = function (properties) {
-  var self = this;
-
-  _.keys(properties).forEach(function (property) {
-    self[property] = properties[property];
-  });
-
-  self['@get'] = hydramw.Class.prototype['@get'];
-};
-
-
-
-hydramw.Class.prototype['@get'] = function () {
-  var copyJsonLdProperties = function (object, root) {
-    if (!object) {
-      return null;
-    }
-
-    // extend @id property to full path
-    if ('@id' in object) {
-      root = path.join(root || '', object['@id']);
-    }
-
-    return _.keys(object).reduce(function (json, key) {
-      var value = object[key];
-
-      // don't add function properties
-      if (_.isFunction(value)) {
-        return json;
-      }
-
-      // don't add properties with @omit flag
-      if (_.isObject(value) && '@omit' in value && value['@omit']) {
-        return json;
-      }
-
-      // use full path
-      if (key === '@id') {
-        value = root;
-      }
-
-      if (_.isString(value)) {
-        json[key] = value;
-      } else {
-        json[key] = copyJsonLdProperties(value, root);
-      }
-
-      return json;
-    }, {});
-  };
-
-  return Promise.resolve(copyJsonLdProperties(this));
+  res.set('Content-Type', 'application/ld+json').send(JSON.stringify(json));
 };
 
 
 hydramw.Middleware = function (apiDef, factory) {
   var self = this;
 
-  var findOperation = function (object, objectPath, propertyPath, method) {
+  var findOperation = function (object, objectPath, fullPath, method) {
     method = '@' + method.toLowerCase();
 
-    if (_.isEmpty(propertyPath)) {
+    if (fullPath === object['@id']) {
       if (method in object) {
         return object[method].bind(object);
       }
     } else {
       return _.values(object)
         .filter(function (property) {
-          return _.isObject(property) && '@id' in property && property['@id'] === propertyPath && method in property;
+          return _.isObject(property) && '@id' in property && property['@id'] === fullPath && method in property;
         })
         .map(function (property) {
           return property[method].bind(object);
@@ -153,15 +103,13 @@ hydramw.Middleware = function (apiDef, factory) {
     return objectPath;
   };
 
-  var getPropertyPath = function (fullPath, objectPath) {
-    var propertyPath = fullPath.slice(objectPath.length);
+  this.init = function () {
+    return hydra.api(apiDef)
+      .then(function (api) {
+        self.api = api;
 
-    // remove leading /
-    if (propertyPath.slice(0, 1) === '/') {
-      propertyPath = propertyPath.slice(1);
-    }
-
-    return propertyPath;
+        return self;
+      });
   };
 
   this.use = function (path, app) {
@@ -170,34 +118,31 @@ hydramw.Middleware = function (apiDef, factory) {
       path = '/';
     }
 
-    return hydra.api(apiDef)
-      .then(function (api) {
-        self.api = api;
+    // send API link in header
+    app.use(path, utils.sendApiHeader(self.api.iri));
 
-        // send API link in header
-        app.use(path, utils.sendApiHeader(self.api.iri));
+    // publish API
+    app.get(self.api.iri, function (req, res) {
+      utils.sendJsonLd(res, apiDef);
+    });
 
-        // publish API
-        app.get(self.api.iri, function (req, res) {
-          utils.sendJsonLd(res, apiDef);
-        });
+    // handle operations
+    app.use(path, self.middleware);
 
-        // handle operations
-        app.use(path, self.middleware);
-
-        return self;
-      });
+    return self;
   };
 
   this.middleware = function (req, res, next) {
-    factory(req.path)
+    Promise.resolve()
+      .then(function () {
+        return factory(req.path);
+      })
       .then(function (object) {
-        // split path into object and property path
+        // remove property part of path
         var objectPath = getObjectPath(req.path, object['@id']);
-        var propertyPath = getPropertyPath(req.path, objectPath);
 
         // search for operation
-        var operation = findOperation(object, objectPath, propertyPath, req.method);
+        var operation = findOperation(object, objectPath, req.path, req.method);
 
         if (!operation) {
           return Promise.reject(new utils.NotFoundError('operation not found'));
@@ -215,9 +160,16 @@ hydramw.Middleware = function (apiDef, factory) {
         }
 
         // call operation
-        return operation(req.body, options)
+        return Promise.resolve()
+          .then(function () {
+            return operation.call(object, req.body, options)
+          })
           .then(function (result) {
             if (result) {
+              if (result.toJSON) {
+                result = result.toJSON();
+              }
+
               // send JSON-LD response if there is any result
               return utils.sendJsonLd(res, result);
             } else {
@@ -264,7 +216,7 @@ hydramw.Factory = function (routing) {
     var routing = findRouting(iri);
 
     if (!routing) {
-      return Promise.reject(new utils.NotFoundError('no routing for <' + iri + '>'));
+      throw new utils.NotFoundError('no routing for <' + iri + '>');
     }
 
     var result = routing.path.exec(iri);
@@ -274,6 +226,19 @@ hydramw.Factory = function (routing) {
     }
 
     return routing.factory(iri);
+  };
+};
+
+
+hydra.defaults.model.createInvoke = function (operation) {
+  if (operation.method === 'GET') {
+    return function () {
+      return Promise.resolve(this.toJSON());
+    };
+  }
+
+  return function () {
+    console.error('not implemented');
   };
 };
 

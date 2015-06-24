@@ -7,10 +7,13 @@ var
   fs = require('fs'),
   hydramw = require('../../hydra-middleware'),
   morgan = require('morgan'),
-  Controller = require('./controller');
+  Controller = require('./controller'),
+  Model = require('./model');
 
 
-var controller = new Controller();
+var model = new Model();
+var controller = new Controller(model);
+
 
 var factoryRouting = [{
   path: RegExp('^(/)$'),
@@ -23,16 +26,25 @@ var factoryRouting = [{
   factory: controller.getEvent
 }];
 
+
 var factory = new hydramw.Factory(factoryRouting);
 var middleware = new hydramw.Middleware(fs.readFileSync(__dirname + '/api.json').toString(), factory.build);
 
+
 var app = express();
+
 
 app.use(morgan('combined'));
 app.use(bodyParser.json({type: 'application/ld+json'}));
 
 
-middleware.use(app)
+middleware.init()
+  .then(function () {
+    return model.init(middleware.api);
+  })
+  .then(function () {
+    return middleware.use(app);
+  })
   .then(function() {
     app.listen(8080);
 
