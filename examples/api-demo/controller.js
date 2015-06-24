@@ -46,7 +46,7 @@ var Controller = function (model) {
 
   this.deleteIssue = function (iri) {
     if (!(iri in issues)) {
-      throw new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'nt exist');
+      throw new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'t exist');
     }
 
     delete issues[iri];
@@ -54,7 +54,7 @@ var Controller = function (model) {
 
   this.getIssue = function (iri) {
     if (!(iri in issues)) {
-      throw new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'nt exist');
+      throw new hydramw.utils.NotFoundError('issue <' + iri + '> doesn\'t exist');
     }
 
     return issues[iri];
@@ -86,7 +86,7 @@ var Controller = function (model) {
 
   this.deleteUser = function (iri) {
     if (!(iri in users)) {
-      throw new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'nt exist');
+      throw new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'t exist');
     }
 
     delete users[iri];
@@ -94,7 +94,7 @@ var Controller = function (model) {
 
   this.getUser = function (iri) {
     if (!(iri in users)) {
-      throw new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'nt exist');
+      throw new hydramw.utils.NotFoundError('user <' + iri + '> doesn\'t exist');
     }
 
     return users[iri];
