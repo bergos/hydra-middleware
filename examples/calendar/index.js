@@ -15,7 +15,7 @@ var model = new Model();
 var controller = new Controller(model);
 
 
-var factoryRouting = [{
+var routings = [{
   path: RegExp('^(/)$'),
   factory : controller.getEntryPoint
 }, {
@@ -27,8 +27,9 @@ var factoryRouting = [{
 }];
 
 
-var factory = new hydramw.Factory(factoryRouting);
-var middleware = new hydramw.Middleware(fs.readFileSync(__dirname + '/api.json').toString(), factory.build);
+var middleware = new hydramw.Middleware(fs.readFileSync(__dirname + '/api.json').toString(), {
+  routings: routings
+});
 
 
 var app = express();

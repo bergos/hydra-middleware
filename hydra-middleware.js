@@ -1,9 +1,8 @@
 var
   _ = require('lodash'),
   basicAuth = require('basic-auth'),
+  express = require('express'),
   hydra = require('hydra-core'),
-  path = require('path'),
-  url = require('url'),
   util = require('util');
 
 
@@ -71,13 +70,15 @@ utils.sendJsonLd = function (res, json) {
 };
 
 
-hydramw.Middleware = function (apiDef, factory) {
+hydramw.Middleware = function (apiDef, options) {
   var self = this;
+
+  options = options || {};
 
   var findOperation = function (object, objectPath, fullPath, method) {
     method = '@' + method.toLowerCase();
 
-    if (fullPath === object['@id']) {
+    if (fullPath === object['@id'] || fullPath === object['@id']+'/') {
       if (method in object) {
         return object[method].bind(object);
       }
@@ -93,14 +94,14 @@ hydramw.Middleware = function (apiDef, factory) {
     }
   };
 
-  var getObjectPath = function (fullPath, objectIri) {
-    var objectPath = url.parse(objectIri).path;
+  var getObjectPath = function (fullPath, regex) {
+    var objectPath = regex.exec(fullPath);
 
-    if (objectPath.slice(0, 1) !== '/') {
-      objectPath = path.join(fullPath, objectPath);
+    if (objectPath.length < 2) {
+      throw utils.NotFoundError('RegExp contains no group');
     }
 
-    return objectPath;
+    return objectPath[1];
   };
 
   this.init = function () {
@@ -127,25 +128,39 @@ hydramw.Middleware = function (apiDef, factory) {
     });
 
     // handle operations
-    app.use(path, self.middleware);
+    self.router = express.Router({strict: true});
+
+    // add routings if options contains already a list
+    if (options.routings) {
+      options.routings.forEach(function (routing) {
+        self.addRouting(routing);
+      });
+    }
+
+    // add own router
+    app.use(path, self.router);
 
     return self;
   };
 
-  this.middleware = function (req, res, next) {
+  this.addRouting = function (routing) {
+    self.router.use(routing.path, self.middleware.bind(self, routing));
+  };
+
+  this.middleware = function (routing, req, res, next) {
+    var fullPath = req.originalUrl;
+    var objectPath = getObjectPath(fullPath, routing.path);
+
     Promise.resolve()
       .then(function () {
-        return factory(req.path);
+        return routing.factory(objectPath);
       })
       .then(function (object) {
-        // remove property part of path
-        var objectPath = getObjectPath(req.path, object['@id']);
-
         // search for operation
-        var operation = findOperation(object, objectPath, req.path, req.method);
+        var operation = findOperation(object, objectPath, fullPath, req.method);
 
         if (!operation) {
-          return Promise.reject(new utils.NotFoundError('operation not found'));
+          throw new utils.NotFoundError('operation not found');
         }
 
         // options for the operation call
@@ -193,39 +208,6 @@ hydramw.Middleware = function (apiDef, factory) {
 
         res.status(statusCode).send(message);
       })
-  };
-};
-
-
-hydramw.Factory = function (routing) {
-  var self = this;
-
-  this.routing = routing;
-
-  var findRouting = function (iri) {
-    for (var i=0; i<self.routing.length; i++) {
-      if(self.routing[i].path.test(iri)) {
-        return self.routing[i];
-      }
-    }
-
-    return undefined;
-  };
-
-  this.build = function (iri) {
-    var routing = findRouting(iri);
-
-    if (!routing) {
-      throw new utils.NotFoundError('no routing for <' + iri + '>');
-    }
-
-    var result = routing.path.exec(iri);
-
-    if (result && result.length > 1) {
-      iri = result[1];
-    }
-
-    return routing.factory(iri);
   };
 };
 
