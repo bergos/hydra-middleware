@@ -1,8 +1,6 @@
-global.Promise = require('es6-promise').Promise;
-
-
 var
   bodyParser = require('body-parser'),
+  cors = require('cors'),
   express = require('express'),
   fs = require('fs'),
   hydramw = require('../../hydra-middleware'),
@@ -41,6 +39,10 @@ var middleware = new hydramw.Middleware(fs.readFileSync(__dirname + '/api.json')
 var app = express();
 
 
+app.use(cors({
+  allowedHeaders: ['Authorization', 'Content-Type'],
+  exposedHeaders: ['Content-Location', 'Link']
+}));
 app.use(morgan('combined'));
 app.use(bodyParser.json({type: 'application/ld+json'}));
 

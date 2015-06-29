@@ -7,10 +7,16 @@
     "test": "node_modules/.bin/mocha"
   },
   "keywords": [
+    "express",
     "hydra"
   ],
   "author": "bergi@axolotlfarm.org",
   "license": "MIT",
+  "readmeFilename": "README.md",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:bergos/hydra-middleware.git"
+  },
   "dependencies": {
     "hydra-core": "*",
     "lodash": "3.*"
@@ -18,7 +24,7 @@
   "devDependencies": {
     "basic-auth": "1.*",
     "body-parser": "1.*",
-    "es6-promise": "2.*",
+    "cors": "2.*",
     "express": "4.*",
     "jsonld": "0.3.*",
     "mocha": "2.*",

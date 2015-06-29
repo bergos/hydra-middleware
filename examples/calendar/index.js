@@ -1,6 +1,3 @@
-global.Promise = require('es6-promise').Promise;
-
-
 var
   bodyParser = require('body-parser'),
   express = require('express'),
