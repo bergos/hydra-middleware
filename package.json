@@ -1,6 +1,6 @@
 {
   "name": "hydra-middleware",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Hydra middleware for connect/express applications",
   "main": "hydra-middleware.js",
   "scripts": {
