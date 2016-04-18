@@ -1,0 +1,38 @@
+{
+  "name": "hydra-middleware",
+  "version": "0.9.0",
+  "description": "Hydra middlware",
+  "main": "index.js",
+  "scripts": {
+    "lint": "standard",
+    "test": "npm run lint && mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bergos/hydra-middleware.git"
+  },
+  "keywords": [
+    "rdf-stores",
+    "rdf",
+    "linked",
+    "data"
+  ],
+  "author": "Thomas Bergwinkl <bergi@axolotlfarm.org> (https://www.bergnet.org/people/bergi/card#me)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bergos/hydra-middleware/issues"
+  },
+  "homepage": "https://github.com/bergos/hydra-middleware",
+  "dependencies": {
+    "absolute-url": "^1.0.0",
+    "bluebird": "^3.0.5",
+    "simplerdf": "^0.2.8",
+    "simplerdf-body-parser": "^0.3.1"
+  },
+  "devDependencies": {
+    "express": "^4.13.3",
+    "mocha": "^2.3.3",
+    "morgan": "^1.6.1",
+    "supertest-as-promised": "^3.1.0"
+  }
+}
