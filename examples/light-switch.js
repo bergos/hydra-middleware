@@ -16,16 +16,22 @@
 
  */
 
-var object = require('../object')
-var express = require('express')
-var morgan = require('morgan')
-var url = require('url')
-var Simple = require('simplerdf')
+let formats = require('rdf-formats-common')()
+let object = require('../object')
+let express = require('express')
+let morgan = require('morgan')
+let serve = require('rdf-serve-static')
+let url = require('url')
+let Simple = require('simplerdf')
 
-// light switch JSON-LD context
+/*
+  light switch SimpleRDF context
+*/
 
 var context = {
-  label: 'ttp://www.w3.org/2000/01/rdf-schema#label',
+  LightSwitch: 'http://example.org/LightSwitch',
+  Status: 'http://example.org/Status',
+  label: 'http://www.w3.org/2000/01/rdf-schema#label',
   on: 'http://example.org/on',
   off: 'http://example.org/off',
   power: {
@@ -35,43 +41,80 @@ var context = {
   status: {
     '@id': 'http://example.org/status',
     '@type': '@id'
+  },
+  type: {
+    '@id': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+    '@type': '@id'
   }
 }
 
-// light switch class
+/*
+  light switch class
+*/
 
-var lightSwitch = new Simple(context)
+let lightSwitch = new Simple(context)
 
-lightSwitch.label = 'living room light switch'
+function initLightSwitch (iri) {
+  // set the public IRI
+  lightSwitch.iri(iri)
 
-lightSwitch.get = function () {
-  return this
+  // add properties
+  lightSwitch.type = context.LightSwitch
+  lightSwitch.label = 'living room light switch'
+
+  // and methods
+  lightSwitch.get = function () {
+    return this
+  }
+
+  // create status object
+  let status = new Simple(context, url.resolve(lightSwitch.iri().toString(), 'status'))
+
+  // with properties
+  status.type = context.Status
+  status.power = context.off
+
+  // and methods
+  status.get = function () {
+    return this
+  }
+
+  status.put = function (status) {
+    this.power = status.power
+  }
+
+  // assign status object to light switch
+  lightSwitch.status = status
 }
 
-var status = new Simple(context, url.resolve(lightSwitch.iri().toString(), 'status'))
-
-status.power = context.off
-
-status.get = function () {
-  return this
-}
-
-status.put = function (status) {
-  this.power = status.power
-}
-
-lightSwitch.status = status
-
-// express app
+/*
+  express app
+*/
 
 var app = express()
 
+// log a request to the console
 app.use(morgan('combined'))
+
+// add api Link header
+app.use((req, res, next) => {
+  res.header('Link', '</light-switch-vocab>; rel="http://www.w3.org/ns/hydra/core#apiDocumentation"')
+
+  next()
+})
+
+// user rdf-serve-static to publich the API vocab
+app.use(serve(__dirname, formats))
+
+// use the object middleware to handle request to the light switch
 app.use('/', object(lightSwitch, context))
 
-var server = app.listen(8080, function () {
-  var host = server.address().address
-  var port = server.address().port
+let server = app.listen(8080, () => {
+  let host = server.address().address
+  let port = server.address().port
+
+  // init light switch with the final absolute IRI
+  initLightSwitch('http://localhost:' + port + '/')
 
   console.log('listening on http://%s:%s', host, port)
 })

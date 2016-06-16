@@ -1,0 +1,55 @@
+@prefix hydra: <http://www.w3.org/ns/hydra/core#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<> a hydra:ApiDocumentation ;
+  hydra:supportedClass
+    <http://example.org/LightSwitch>,
+    <http://example.org/Status> .
+
+<http://example.org/LightSwitch>
+  a hydra:Class ;
+  rdfs:label "Light Switch" ;
+  hydra:supportedOperation [
+    a hydra:Operation ;
+    rdfs:label "Retrieves a Light Switch" ;
+    hydra:method "GET" ;
+    hydra:returns <http://example.org/LightSwitch>
+  ] ;
+  hydra:supportedProperty [
+    hydra:property <http://example.org/status>
+  ] .
+
+<http://example.org/Status>
+  a hydra:Class ;
+  rdfs:label "Power Status" ;
+  hydra:supportedOperation [
+    a hydra:Operation ;
+    rdfs:label "Retrieves the Power Status" ;
+    hydra:method "GET" ;
+    hydra:returns <http://example.org/Status>
+  ] ;
+  hydra:supportedProperty [
+    hydra:property <http://example.org/power>
+  ] .
+
+<http://example.org/power>
+  a rdf:Property ;
+  rdfs:label "Power" .
+
+<http://example.org/status>
+  a rdf:Property ;
+  rdfs:label "Status" ;
+  hydra:supportedOperation [
+    a hydra:Operation ;
+    rdfs:label "Retrieves the status" ;
+    hydra:method "GET" ;
+    hydra:returns <http://example.org/Status>
+  ], [
+    a hydra:Operation ;
+    rdfs:label "Sets the status" ;
+    hydra:method "PUT" ;
+    hydra:returns <http://example.org/Status>
+  ] .
