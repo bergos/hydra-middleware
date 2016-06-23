@@ -1,3 +1,5 @@
+'use strict'
+
 /*
 
   Simple light switch example
@@ -16,20 +18,20 @@
 
  */
 
-var apiHeader = require('../api-header')
-var formats = require('rdf-formats-common')()
-var object = require('../object')
-var express = require('express')
-var morgan = require('morgan')
-var serve = require('rdf-serve-static')
-var url = require('url')
-var Simple = require('simplerdf')
+const apiHeader = require('../api-header')
+const formats = require('rdf-formats-common')()
+const object = require('../object')
+const express = require('express')
+const morgan = require('morgan')
+const serve = require('rdf-serve-static')
+const url = require('url')
+const SimpleRDF = require('simplerdf/lite').SimpleRDF
 
 /*
   light switch SimpleRDF context
 */
 
-var context = {
+let context = {
   LightSwitch: 'http://example.org/LightSwitch',
   Status: 'http://example.org/Status',
   label: 'http://www.w3.org/2000/01/rdf-schema#label',
@@ -53,46 +55,42 @@ var context = {
   light switch class
 */
 
-var lightSwitch = new Simple(context)
+class LightSwitchStatus extends SimpleRDF {
+  constructor (iri) {
+    super(context, iri)
 
-function initLightSwitch (iri) {
-  // set the public IRI
-  lightSwitch.iri(iri)
+    this.type = context.Status
+    this.power = context.off
+  }
 
-  // add properties
-  lightSwitch.type = context.LightSwitch
-  lightSwitch.label = 'living room light switch'
-
-  // and methods
-  lightSwitch.get = function () {
+  get () {
     return this
   }
 
-  // create status object
-  var status = new Simple(context, url.resolve(lightSwitch.iri().toString(), 'status'))
-
-  // with properties
-  status.type = context.Status
-  status.power = context.off
-
-  // and methods
-  status.get = function () {
-    return this
-  }
-
-  status.put = function (status) {
+  put (status) {
     this.power = status.power
   }
+}
 
-  // assign status object to light switch
-  lightSwitch.status = status
+class LightSwitch extends SimpleRDF {
+  constructor (iri, label) {
+    super(context, iri)
+
+    this.type = context.LightSwitch
+    this.label = label
+    this.status = new LightSwitchStatus(url.resolve(iri.toString(), 'status'))
+  }
+
+  get () {
+    return this
+  }
 }
 
 /*
   express app
 */
 
-var app = express()
+let app = express()
 
 // log a request to the console
 app.use(morgan('combined'))
@@ -104,14 +102,12 @@ app.use(apiHeader('/light-switch-vocab'))
 app.use(serve(__dirname, formats))
 
 // use the object middleware to handle request to the light switch
+let lightSwitch = new LightSwitch('http://localhost:8080/', 'living room light switch')
 app.use('/', object(lightSwitch, context))
 
-var server = app.listen(8080, function () {
-  var host = server.address().address
-  var port = server.address().port
-
-  // init light switch with the final absolute IRI
-  initLightSwitch('http://localhost:' + port + '/')
+let server = app.listen(url.parse(lightSwitch.iri().toString()).port, () => {
+  let host = server.address().address
+  let port = server.address().port
 
   console.log('listening on http://%s:%s', host, port)
 })
