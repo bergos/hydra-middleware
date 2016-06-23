@@ -1,6 +1,6 @@
 {
   "name": "hydra-middleware",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Hydra middlware",
   "main": "index.js",
   "scripts": {
