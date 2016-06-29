@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/bergos/hydra-middleware",
   "dependencies": {
+    "bluebird": "^3.4.1",
     "absolute-url": "^1.0.0",
     "bluebird": "^3.0.5",
     "simplerdf": "^0.2.8",
