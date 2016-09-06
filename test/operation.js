@@ -1,4 +1,4 @@
-/* global describe, it */
+/* global before, describe, it */
 
 var assert = require('assert')
 var express = require('express')
@@ -8,6 +8,13 @@ var SimpleRDF = require('simplerdf/lite')
 
 describe('operation middleware', function () {
   var app = express()
+  var host
+
+  before(function () {
+    return request(app).get('/').then(function (res) {
+      host = res.req.getHeader('host')
+    })
+  })
 
   it('should return not found error if no object is attached to the request', function () {
     app.use('/operation/no-object', operation())
@@ -20,7 +27,11 @@ describe('operation middleware', function () {
 
   it('should return method not allowed error if the object doesn\'t support the method', function () {
     app.use('/operation/object-unsupported-method', function (req, res, next) {
-      req.hydra = {object: {}}
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/object-unsupported-method'
+        }
+      }}
 
       next()
     })
@@ -35,9 +46,13 @@ describe('operation middleware', function () {
 
   it('should return no content if the requested operation has no return value', function () {
     app.use('/operation/object-no-return-value', function (req, res, next) {
-      req.hydra = {object: {}}
-      req.hydra.object.get = function () {
-      }
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/object-no-return-value'
+        },
+        get: function () {
+        }
+      }}
 
       next()
     })
@@ -56,10 +71,14 @@ describe('operation middleware', function () {
     result.predicate = 'object'
 
     app.use('/operation/object-return-value', function (req, res, next) {
-      req.hydra = {object: {}}
-      req.hydra.object.get = function () {
-        return result
-      }
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/object-return-value'
+        },
+        get: function () {
+          return result
+        }
+      }}
 
       next()
     })
@@ -81,10 +100,14 @@ describe('operation middleware', function () {
     var result = new SimpleRDF({}, 'http://example.org/subject')
 
     app.use('/operation/content-location', function (req, res, next) {
-      req.hydra = {object: {}}
-      req.hydra.object.get = function () {
-        return result
-      }
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/content-location'
+        },
+        get: function () {
+          return result
+        }
+      }}
 
       next()
     })
@@ -103,7 +126,11 @@ describe('operation middleware', function () {
 
   it('should return not found error if the property doesn\'t exist', function () {
     app.use('/operation/no-property', function (req, res, next) {
-      req.hydra = {object: {}}
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/no-property'
+        }
+      }}
 
       next()
     })
@@ -118,8 +145,12 @@ describe('operation middleware', function () {
 
   it('should return 405 Method Not Allowed if the property doesn\'t support the method', function () {
     app.use('/operation/property-unsupported-method', function (req, res, next) {
-      req.hydra = {object: {}}
-      req.hydra.object.property = {}
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/property-unsupported-method'
+        },
+        property: {}
+      }}
 
       next()
     })
@@ -138,11 +169,16 @@ describe('operation middleware', function () {
     result.predicate = 'object'
 
     app.use('/operation/property-return-value', function (req, res, next) {
-      req.hydra = {object: {}}
-      req.hydra.object.property = {}
-      req.hydra.object.property.get = function () {
-        return result
-      }
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/property-return-value'
+        },
+        property: {
+          get: function () {
+            return result
+          }
+        }
+      }}
 
       next()
     })
@@ -162,10 +198,14 @@ describe('operation middleware', function () {
 
   it('should forward method errors', function () {
     app.use('/operation/error', function (req, res, next) {
-      req.hydra = {object: {}}
-      req.hydra.object.get = function () {
-        throw new Error('error')
-      }
+      req.hydra = {object: {
+        iri: function () {
+          return 'http://' + host + '/operation/error'
+        },
+        get: function () {
+          throw new Error('error')
+        }
+      }}
 
       next()
     })

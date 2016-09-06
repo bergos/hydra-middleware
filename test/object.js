@@ -1,4 +1,4 @@
-/* global describe, it */
+/* global before, describe, it */
 
 var assert = require('assert')
 var express = require('express')
@@ -8,9 +8,16 @@ var SimpleRDF = require('simplerdf/lite')
 
 describe('object middleware', function () {
   var app = express()
+  var host
+
+  before(function () {
+    return request(app).get('/').then(function (res) {
+      host = res.req.getHeader('host')
+    })
+  })
 
   it('should use the given object to handle requests', function () {
-    var instance = new SimpleRDF()
+    var instance = new SimpleRDF(null, 'http://' + host + '/object/use')
     var called = false
 
     instance.get = function () {
@@ -28,7 +35,7 @@ describe('object middleware', function () {
   })
 
   it('should handle errors', function () {
-    var instance = new SimpleRDF()
+    var instance = new SimpleRDF(null, 'http://' + host + '/object/error')
 
     instance.get = function () {
       throw new Error('error')
