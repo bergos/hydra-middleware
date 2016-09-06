@@ -1,10 +1,10 @@
 var Promise = require('bluebird')
-var attachAbsoluteUrl = require('./lib/attach-absolute-url')
+var attachBodyParser = require('./lib/attach-body-parser')
 var operation = Promise.promisify(require('./operation')())
 var url = require('url')
 
-function middleware (factory, attachAbsoluteUrl, req, res, next) {
-  attachAbsoluteUrl(req, res).then(function () {
+function middleware (factory, attachBodyParser, req, res, next) {
+  attachBodyParser(req, res).then(function () {
     var iri = url.resolve(req.absoluteUrl(), req.baseUrl)
 
     return factory(iri)
@@ -16,8 +16,8 @@ function middleware (factory, attachAbsoluteUrl, req, res, next) {
   }).catch(next)
 }
 
-function init (factory) {
-  return middleware.bind(null, factory, attachAbsoluteUrl())
+function init (factory, context) {
+  return middleware.bind(null, factory, attachBodyParser(context))
 }
 
 module.exports = init

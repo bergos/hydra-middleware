@@ -41,8 +41,8 @@ describe('factory middleware', function () {
   it('should use the object built by the factory', function () {
     var called = false
 
-    app.use('/factory/use', factory(function () {
-      var instance = new SimpleRDF()
+    app.use('/factory/use', factory(function (iri) {
+      var instance = new SimpleRDF(null, iri)
 
       instance.get = function () {
         called = true
@@ -57,6 +57,22 @@ describe('factory middleware', function () {
       .then(function (res) {
         assert(called)
       })
+  })
+
+  it('should use the given context', function () {
+    app.use('/factory/context', factory(function (iri) {
+      var instance = new SimpleRDF(null, iri)
+
+      instance.post = function (input) {
+        assert.equal(input.context().properties().shift(), 'test')
+      }
+
+      return instance
+    }, {test: 'http://example.org/test'}))
+
+    return request(app)
+      .post('/factory/context')
+      .expect(204)
   })
 
   it('should handle errors in factory call', function () {
