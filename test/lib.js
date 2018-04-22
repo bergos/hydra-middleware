@@ -1,20 +1,20 @@
 /* global describe, it */
 
-var assert = require('assert')
-var attachAbsoluteUrl = require('../lib/attach-absolute-url')
-var attachBodyParser = require('../lib/attach-body-parser')
-var express = require('express')
-var request = require('supertest-as-promised')
+const assert = require('assert')
+//const attachAbsoluteUrl = require('../lib/attach-absolute-url')
+const attachBodyParser = require('../lib/attach-body-parser')
+const express = require('express')
+const request = require('supertest')
 
-describe('attach-absolute-url', function () {
-  var app = express()
+/*describe('attach-absolute-url', () => {
+  const app = express()
 
-  it('should attach .absoluteUrl function', function () {
-    var attach = attachAbsoluteUrl()
-    var typeofAbsoluteUrl
+  it('should attach .absoluteUrl function', () => {
+    const attach = attachAbsoluteUrl()
+    let typeofAbsoluteUrl
 
-    app.use('/attach-absolute-url/attach', function (req, res, next) {
-      attach(req, res).then(function () {
+    app.use('/attach-absolute-url/attach', (req, res, next) => {
+      attach(req, res).then(() => {
         typeofAbsoluteUrl = typeof req.absoluteUrl
 
         next()
@@ -23,20 +23,20 @@ describe('attach-absolute-url', function () {
 
     return request(app)
       .get('/attach-absolute-url/attach')
-      .then(function (res) {
+      .then((res) => {
         assert.equal(typeofAbsoluteUrl, 'function')
       })
   })
 
-  it('should do nothing if there is already a .absoluteUrl function', function () {
-    var absoluteUrl = function () {}
-    var attach = attachAbsoluteUrl()
-    var attachedAbsoluteUrl
+  it('should do nothing if there is already a .absoluteUrl function', () => {
+    const absoluteUrl = () => {}
+    const attach = attachAbsoluteUrl()
+    let attachedAbsoluteUrl
 
-    app.use('/attach-absolute-url/nothing', function (req, res, next) {
+    app.use('/attach-absolute-url/nothing', (req, res, next) => {
       req.absoluteUrl = absoluteUrl
 
-      attach(req, res).then(function () {
+      attach(req, res).then(() => {
         attachedAbsoluteUrl = req.absoluteUrl
 
         next()
@@ -45,22 +45,22 @@ describe('attach-absolute-url', function () {
 
     return request(app)
       .get('/attach-absolute-url/nothing')
-      .then(function (res) {
+      .then((res) => {
         assert.equal(attachedAbsoluteUrl, absoluteUrl)
       })
   })
-})
+})*/
 
-describe('attach-body-parser', function () {
-  var app = express()
+describe('attach-body-parser', () => {
+  const app = express()
 
-  it('should attach bodyParser', function () {
-    var attach = attachBodyParser()
-    var typeofSendSimple
+  it('should attach bodyParser', () => {
+    const attach = attachBodyParser()
+    let typeofSendSimple
 
-    app.use('/attach-body-parser/attach', function (req, res, next) {
-      attach(req, res).then(function () {
-        typeofSendSimple = typeof res.sendSimple
+    app.use('/attach-body-parser/attach', (req, res, next) => {
+      attach(req, res).then(() => {
+        typeofSendSimple = typeof res.simple
 
         next()
       })
@@ -68,20 +68,20 @@ describe('attach-body-parser', function () {
 
     return request(app)
       .get('/attach-body-parser/attach')
-      .then(function (res) {
+      .then((res) => {
         assert.equal(typeofSendSimple, 'function')
       })
   })
 
-  it('should do nothing if there is already a .sendSimple function', function () {
-    var sendSimple = function () {}
-    var attach = attachBodyParser()
-    var attachedSendSimple
+  it('should do nothing if there is already a .sendSimple function', () => {
+    const sendSimple = () => {}
+    const attach = attachBodyParser()
+    let attachedSendSimple
 
-    app.use('/attach-body-parser/nothing', function (req, res, next) {
+    app.use('/attach-body-parser/nothing', (req, res, next) => {
       res.sendSimple = sendSimple
 
-      attach(req, res).then(function () {
+      attach(req, res).then(() => {
         attachedSendSimple = res.sendSimple
 
         next()
@@ -90,7 +90,7 @@ describe('attach-body-parser', function () {
 
     return request(app)
       .get('/attach-body-parser/nothing')
-      .then(function (res) {
+      .then((res) => {
         assert.equal(attachedSendSimple, sendSimple)
       })
   })

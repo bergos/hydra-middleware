@@ -1,22 +1,22 @@
 /* global before, describe, it */
 
-var assert = require('assert')
-var express = require('express')
-var operation = require('../operation')
-var request = require('supertest-as-promised')
-var SimpleRDF = require('simplerdf/lite')
+const assert = require('assert')
+const express = require('express')
+const operation = require('../operation')
+const request = require('supertest')
+const Simple = require('simplerdf-core')
 
-describe('operation middleware', function () {
-  var app = express()
-  var host
+describe('operation middleware', () => {
+  const app = express()
+  let host
 
-  before(function () {
-    return request(app).get('/').then(function (res) {
+  before(() => {
+    return request(app).get('/').then((res) => {
       host = res.req.getHeader('host')
     })
   })
 
-  it('should return not found error if no object is attached to the request', function () {
+  it('should return not found error if no object is attached to the request', () => {
     app.use('/operation/no-object', operation())
 
     return request(app)
@@ -25,10 +25,10 @@ describe('operation middleware', function () {
       .expect(404)
   })
 
-  it('should return method not allowed error if the object doesn\'t support the method', function () {
-    app.use('/operation/object-unsupported-method', function (req, res, next) {
+  it('should return method not allowed error if the object doesn\'t support the method', () => {
+    app.use('/operation/object-unsupported-method', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/object-unsupported-method'
         }
       }}
@@ -44,13 +44,13 @@ describe('operation middleware', function () {
       .expect(405)
   })
 
-  it('should return no content if the requested operation has no return value', function () {
-    app.use('/operation/object-no-return-value', function (req, res, next) {
+  it('should return no content if the requested operation has no return value', () => {
+    app.use('/operation/object-no-return-value', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/object-no-return-value'
         },
-        get: function () {
+        get: () => {
         }
       }}
 
@@ -65,17 +65,17 @@ describe('operation middleware', function () {
       .expect(204)
   })
 
-  it('should return OK if the requested operation returns an object', function () {
-    var result = new SimpleRDF({predicate: 'http://example.org/predicate'})
+  it('should return OK if the requested operation returns an object', () => {
+    const result = new Simple({predicate: 'http://example.org/predicate'})
 
     result.predicate = 'object'
 
-    app.use('/operation/object-return-value', function (req, res, next) {
+    app.use('/operation/object-return-value', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/object-return-value'
         },
-        get: function () {
+        get: () => {
           return result
         }
       }}
@@ -89,22 +89,22 @@ describe('operation middleware', function () {
       .get('/operation/object-return-value')
       .set('Accept', 'application/ld+json')
       .expect(200)
-      .then(function (res) {
+      .then((res) => {
         assert(res.body)
         assert.equal(res.body.length, 1)
         assert.equal(res.body[0]['http://example.org/predicate'], result.predicate)
       })
   })
 
-  it('should set Content-Location header if result subject is a NamedNode', function () {
-    var result = new SimpleRDF({}, 'http://example.org/subject')
+  it('should set Content-Location header if result subject is a NamedNode', () => {
+    const result = new Simple({}, 'http://example.org/subject')
 
-    app.use('/operation/content-location', function (req, res, next) {
+    app.use('/operation/content-location', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/content-location'
         },
-        get: function () {
+        get: () => {
           return result
         }
       }}
@@ -118,16 +118,16 @@ describe('operation middleware', function () {
       .get('/operation/content-location')
       .set('Accept', 'application/ld+json')
       .expect(200)
-      .then(function (res) {
+      .then((res) => {
         assert(res.headers['content-location'])
         assert.equal(res.headers['content-location'], result.iri().toString())
       })
   })
 
-  it('should return not found error if the property doesn\'t exist', function () {
-    app.use('/operation/no-property', function (req, res, next) {
+  it('should return not found error if the property doesn\'t exist', () => {
+    app.use('/operation/no-property', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/no-property'
         }
       }}
@@ -143,10 +143,10 @@ describe('operation middleware', function () {
       .expect(404)
   })
 
-  it('should return 405 Method Not Allowed if the property doesn\'t support the method', function () {
-    app.use('/operation/property-unsupported-method', function (req, res, next) {
+  it('should return 405 Method Not Allowed if the property doesn\'t support the method', () => {
+    app.use('/operation/property-unsupported-method', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/property-unsupported-method'
         },
         property: {}
@@ -163,18 +163,18 @@ describe('operation middleware', function () {
       .expect(405)
   })
 
-  it('should return OK if the requested property operation returns an object', function () {
-    var result = new SimpleRDF({predicate: 'http://example.org/predicate'})
+  it('should return OK if the requested property operation returns an object', () => {
+    const result = new Simple({predicate: 'http://example.org/predicate'})
 
     result.predicate = 'object'
 
-    app.use('/operation/property-return-value', function (req, res, next) {
+    app.use('/operation/property-return-value', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/property-return-value'
         },
         property: {
-          get: function () {
+          get: () => {
             return result
           }
         }
@@ -189,20 +189,20 @@ describe('operation middleware', function () {
       .get('/operation/property-return-value/property')
       .set('Accept', 'application/ld+json')
       .expect(200)
-      .then(function (res) {
+      .then((res) => {
         assert(res.body)
         assert.equal(res.body.length, 1)
         assert.equal(res.body[0]['http://example.org/predicate'], result.predicate)
       })
   })
 
-  it('should forward method errors', function () {
-    app.use('/operation/error', function (req, res, next) {
+  it('should forward method errors', () => {
+    app.use('/operation/error', (req, res, next) => {
       req.hydra = {object: {
-        iri: function () {
+        iri: () => {
           return 'http://' + host + '/operation/error'
         },
-        get: function () {
+        get: () => {
           throw new Error('error')
         }
       }}

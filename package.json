@@ -4,8 +4,7 @@
   "description": "Hydra middlware",
   "main": "index.js",
   "scripts": {
-    "lint": "standard",
-    "test": "npm run lint && mocha"
+    "test": "standard && mocha"
   },
   "repository": {
     "type": "git",
@@ -23,19 +22,16 @@
   },
   "homepage": "https://github.com/bergos/hydra-middleware",
   "dependencies": {
-    "absolute-url": "^1.0.0",
-    "bluebird": "^3.0.5",
-    "lodash": "^4.13.1",
-    "simplerdf": "^0.2.8",
-    "simplerdf-body-parser": "^0.3.1"
+    "bluebird": "^3.5.1",
+    "lodash": "^4.17.5",
+    "set-link": "^1.0.0",
+    "simplerdf-body-parser": "^1.0.1",
+    "simplerdf-fromjson": "^1.0.0"
   },
   "devDependencies": {
-    "express": "^4.13.3",
-    "mocha": "^2.3.3",
-    "morgan": "^1.6.1",
-    "rdf-formats-common": "^0.3.0",
-    "rdf-serve-static": "^0.3.0",
-    "supertest": "^1.2.0",
-    "supertest-as-promised": "^3.1.0"
+    "express": "^4.16.3",
+    "hydra-base": "git://github.com/bergos/hydra-base.git#master",
+    "morgan": "^1.9.0",
+    "supertest": "^3.0.0"
   }
 }

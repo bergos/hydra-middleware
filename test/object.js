@@ -1,26 +1,26 @@
 /* global before, describe, it */
 
-var assert = require('assert')
-var express = require('express')
-var object = require('../object')
-var request = require('supertest-as-promised')
-var SimpleRDF = require('simplerdf/lite')
+const assert = require('assert')
+const express = require('express')
+const object = require('../object')
+const request = require('supertest')
+const Simple = require('simplerdf-core')
 
-describe('object middleware', function () {
-  var app = express()
-  var host
+describe('object middleware', () => {
+  const app = express()
+  let host
 
-  before(function () {
-    return request(app).get('/').then(function (res) {
+  before(() => {
+    return request(app).get('/').then((res) => {
       host = res.req.getHeader('host')
     })
   })
 
-  it('should use the given object to handle requests', function () {
-    var instance = new SimpleRDF(null, 'http://' + host + '/object/use')
-    var called = false
+  it('should use the given object to handle requests', () => {
+    const instance = new Simple(null, 'http://' + host + '/object/use')
+    let called = false
 
-    instance.get = function () {
+    instance.get = () => {
       called = true
     }
 
@@ -29,15 +29,15 @@ describe('object middleware', function () {
     return request(app)
       .get('/object/use')
       .expect(204)
-      .then(function (res) {
+      .then((res) => {
         assert(called)
       })
   })
 
-  it('should handle errors', function () {
-    var instance = new SimpleRDF(null, 'http://' + host + '/object/error')
+  it('should handle errors', () => {
+    const instance = new Simple(null, 'http://' + host + '/object/error')
 
-    instance.get = function () {
+    instance.get = () => {
       throw new Error('error')
     }
 

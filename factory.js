@@ -1,14 +1,14 @@
-var Promise = require('bluebird')
-var attachBodyParser = require('./lib/attach-body-parser')
-var operation = Promise.promisify(require('./operation')())
-var url = require('url')
+const Promise = require('bluebird')
+const attachBodyParser = require('./lib/attach-body-parser')
+const operation = Promise.promisify(require('./operation')())
+const url = require('url')
 
 function middleware (factory, attachBodyParser, req, res, next) {
-  attachBodyParser(req, res).then(function () {
-    var iri = url.resolve(req.absoluteUrl(), req.baseUrl)
+  attachBodyParser(req, res).then(() => {
+    const iri = url.resolve(req.absoluteUrl(), req.baseUrl)
 
     return factory(iri)
-  }).then(function (object) {
+  }).then((object) => {
     req.hydra = req.hydra || {}
     req.hydra.object = object
 

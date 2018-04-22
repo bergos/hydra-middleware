@@ -1,12 +1,12 @@
-var Promise = require('bluebird')
-var attachBodyParser = require('./lib/attach-body-parser')
-var operation = Promise.promisify(require('./operation')())
+const Promise = require('bluebird')
+const attachBodyParser = require('./lib/attach-body-parser')
+const operation = Promise.promisify(require('./operation')())
 
 function middleware (object, attachBodyParser, req, res, next) {
   req.hydra = req.hydra || {}
   req.hydra.object = object
 
-  attachBodyParser(req, res).then(function () {
+  attachBodyParser(req, res).then(() => {
     return operation(req, res, next)
   }).catch(next)
 }

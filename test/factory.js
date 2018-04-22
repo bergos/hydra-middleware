@@ -1,50 +1,50 @@
 /* global describe, it */
 
-var assert = require('assert')
-var express = require('express')
-var factory = require('../factory')
-var request = require('supertest-as-promised')
-var url = require('url')
-var SimpleRDF = require('simplerdf/lite')
+const assert = require('assert')
+const express = require('express')
+const factory = require('../factory')
+const request = require('supertest')
+const url = require('url')
+const Simple = require('simplerdf-core')
 
-describe('factory middleware', function () {
-  var app = express()
+describe('factory middleware', () => {
+  const app = express()
 
-  it('should call the given factory to handle requests', function () {
-    var called = false
+  it('should call the given factory to handle requests', () => {
+    let called = false
 
-    app.use('/factory/call', factory(function () {
+    app.use('/factory/call', factory(() => {
       called = true
     }))
 
     return request(app)
       .get('/factory/call')
-      .then(function (res) {
+      .then((res) => {
         assert(called)
       })
   })
 
-  it('should forward the requested IRI to the factory', function () {
-    var requestedIri
+  it('should forward the requested IRI to the factory', () => {
+    let requestedIri
 
-    app.use('/factory/iri', factory(function (iri) {
+    app.use('/factory/iri', factory((iri) => {
       requestedIri = iri
     }))
 
     return request(app)
       .get('/factory/iri')
-      .then(function (res) {
+      .then((res) => {
         assert.equal(url.parse(requestedIri).path, '/factory/iri')
       })
   })
 
-  it('should use the object built by the factory', function () {
-    var called = false
+  it('should use the object built by the factory', () => {
+    let called = false
 
-    app.use('/factory/use', factory(function (iri) {
-      var instance = new SimpleRDF(null, iri)
+    app.use('/factory/use', factory((iri) => {
+      const instance = new Simple(null, iri)
 
-      instance.get = function () {
+      instance.get = () => {
         called = true
       }
 
@@ -54,16 +54,16 @@ describe('factory middleware', function () {
     return request(app)
       .get('/factory/use')
       .expect(204)
-      .then(function (res) {
+      .then((res) => {
         assert(called)
       })
   })
 
-  it('should use the given context', function () {
-    app.use('/factory/context', factory(function (iri) {
-      var instance = new SimpleRDF(null, iri)
+  it('should use the given context', () => {
+    app.use('/factory/context', factory((iri) => {
+      const instance = new Simple(null, iri)
 
-      instance.post = function (input) {
+      instance.post = (input) => {
         assert.equal(input.context().properties().shift(), 'test')
       }
 
@@ -75,8 +75,8 @@ describe('factory middleware', function () {
       .expect(204)
   })
 
-  it('should handle errors in factory call', function () {
-    app.use('/factory/error', factory(function () {
+  it('should handle errors in factory call', () => {
+    app.use('/factory/error', factory(() => {
       throw new Error('test')
     }))
 
