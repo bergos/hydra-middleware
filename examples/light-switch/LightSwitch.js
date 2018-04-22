@@ -38,7 +38,7 @@ LightSwitch.api(apiFromJSON({
         label: 'Sets the status',
         expects: 'http://example.org/Status',
         returns: 'http://example.org/Status'
-      }],
+      }]
     }
   }]
 }))
