@@ -26,7 +26,8 @@
     "lodash": "^4.17.5",
     "set-link": "^1.0.0",
     "simplerdf-body-parser": "^1.0.1",
-    "simplerdf-fromjson": "^1.0.0"
+    "simplerdf-fromjson": "^1.0.0",
+    "simplerdf-iri-finder": "^1.1.0"
   },
   "devDependencies": {
     "express": "^4.16.3",
